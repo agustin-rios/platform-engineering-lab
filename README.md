@@ -64,6 +64,12 @@ Build → Break → Observe → Fix → Document → Repeat
 
 No es un tutorial. Es operar un sistema durante 12 meses, con la disciplina de un equipo de plataforma real.
 
+## Notas:
+
+Si quieres empezar desde cero copia solo los archivos `setup.sh` y `MASTER_PLAN.md` y sigue las instrucciones ahí. El resto de los archivos se van generando a medida que avanzas.
+
+El primer paso es leer el `MASTER_PLAN.md` completo para entender el roadmap, luego ejecutar `bash setup.sh` para scaffold el repositorio y arrancar la Fase 1.
+
 ## Licencia
 
 MIT — usalo, forkealo, robá lo que sirva.
