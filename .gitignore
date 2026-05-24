@@ -1,0 +1,32 @@
+# Terraform / OpenTofu
+**/.terraform/
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+
+# K8s
+kubeconfig
+*.kubeconfig
+
+# Build
+**/bin/
+**/dist/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Secrets (jamás commitear)
+.env
+*.pem
+*.key
+secrets/
+
+# k6
+k6-results.json
