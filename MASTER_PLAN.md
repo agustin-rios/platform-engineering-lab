@@ -58,16 +58,20 @@ Para que el laboratorio se sienta real, vas a operar **una empresa simulada**. L
 
 ### Componentes del sistema (microservicios)
 
-| Servicio              | Lenguaje | Función                                                |
-|-----------------------|----------|--------------------------------------------------------|
-| `api-gateway`         | Go       | Entry point HTTP/gRPC, autenticación, rate limiting    |
-| `tenant-service`      | Go       | CRUD de tenants, quotas, planes                        |
-| `notification-api`    | Go       | Recibe notificaciones, valida, encola en Kafka         |
-| `notification-worker` | Python   | Consume de Kafka, llama proveedores externos (mocked)  |
-| `template-service`    | Node.js  | Renderiza templates (Handlebars/Jinja)                 |
-| `billing-service`     | Go       | Cuenta uso por tenant, expone métricas                 |
-| `webhook-relay`       | Go       | Reenvía eventos a webhooks de clientes con retries     |
-| `admin-dashboard`     | React    | UI para que tenants vean su uso                        |
+Stack principal del laboratorio: **TypeScript + Python**. Ver [LANGUAGE_STRATEGY.md](./LANGUAGE_STRATEGY.md) para el razonamiento completo y el track opcional de Rust.
+
+| Servicio              | Lenguaje                    | Función                                                |
+|-----------------------|-----------------------------|--------------------------------------------------------|
+| `api-gateway`         | TypeScript (Fastify)        | Entry point HTTP/gRPC, autenticación, rate limiting    |
+| `tenant-service`      | TypeScript (Fastify + Prisma) | CRUD de tenants, quotas, planes                      |
+| `notification-api`    | TypeScript (Fastify)        | Recibe notificaciones, valida, encola en Kafka         |
+| `notification-worker` | Python (aiokafka + asyncio) | Consume de Kafka, llama proveedores externos (mocked)  |
+| `template-service`    | TypeScript (MJML + Handlebars) | Renderiza templates de email/SMS/push               |
+| `billing-service`     | Python (FastAPI)            | Cuenta uso por tenant, expone métricas, reportes       |
+| `webhook-relay`       | TypeScript (undici)         | Reenvía eventos a webhooks de clientes con retries     |
+| `admin-dashboard`     | TypeScript (React + Vite)   | UI para que tenants vean su uso                        |
+
+> **🦀 Track opcional Rust:** Si en algún momento decides incorporar Rust, los dos servicios donde **realmente** se justifica son `api-gateway` (Axum) y `webhook-relay` (Tokio + reqwest) — alta concurrencia, performance crítico, código acotado. Buenos candidatos para reescribir en Fase 6 o Fase 8 como ejercicio paralelo. Ver `LANGUAGE_STRATEGY.md`.
 
 ### Arquitectura objetivo (fase 10)
 
@@ -196,7 +200,7 @@ platform-engineering-lab/
 │   │   ├── spike.js
 │   │   ├── soak-24h.js
 │   │   └── multi-tenant-fairness.js
-│   └── tenant-simulator/        # Cliente Go que simula N tenants reales
+│   └── tenant-simulator/        # Cliente TS/Python que simula N tenants reales
 │
 ├── chaos/
 │   ├── chaos-mesh/              # Experimentos declarativos
@@ -274,11 +278,11 @@ Cada fase tiene:
 **Objetivo:** Saber operar Linux, redes, HTTP, Docker y un pipeline CI básico antes de tocar Kubernetes.
 
 **Deliverables:**
-- `services/notification-api` versión "monolito": un servicio Go con `/healthz`, `/readyz`, endpoint POST /notifications que guarda en Postgres local.
+- `services/notification-api` versión "monolito": un servicio **TypeScript con Fastify + Prisma** con `/healthz`, `/readyz`, endpoint POST /notifications que guarda en Postgres local. Instrumentado con OpenTelemetry SDK.
 - `docker-compose.yml` que levanta: servicio + Postgres + Redis + Nginx como reverse proxy.
 - `Makefile` con `make build`, `make test`, `make run`.
-- Pipeline en `.github/workflows/build-services.yml` que: lint, test, build, push a `ghcr.io`.
-- 3 ADRs escritos: por qué Go, por qué Postgres, por qué monorepo.
+- Pipeline en `.github/workflows/build-services.yml` que: lint (eslint), typecheck (tsc), test (vitest), build, push a `ghcr.io`.
+- 3 ADRs escritos: por qué TypeScript+Python como stack principal, por qué Postgres, por qué monorepo.
 
 **Definition of Done:**
 - [ ] Puedes hacer `curl localhost/notifications -d '...'` y ver la fila en Postgres.
@@ -290,7 +294,8 @@ Cada fase tiene:
 - *The Linux Command Line* — William Shotts (gratis online).
 - *Computer Networking: A Top-Down Approach* — Kurose & Ross (caps 1–3 bastan).
 - Julia Evans zines (jvns.ca): `bite-size-networking`, `how-containers-work`.
-- Repo a clonar y leer: [`stefanprodan/podinfo`](https://github.com/stefanprodan/podinfo) — es el patrón de microservicio Go bien hecho.
+- Docs Fastify (`fastify.dev`) — patrones, plugins, hooks, error handling.
+- Repo a clonar y leer: [`stefanprodan/podinfo`](https://github.com/stefanprodan/podinfo) — patrón de microservicio bien hecho. Está en Go, pero es **fácil de leer** sin saber escribirlo, y la arquitectura (health checks, OTel, structured logging, graceful shutdown) la replicas en TS.
 
 ---
 
@@ -433,7 +438,7 @@ Cada fase tiene:
 **Objetivo:** Tu plataforma sobrevive Black Friday simulado y resucita de fallos a nodos, redes, dependencias.
 
 **Deliverables:**
-- `load-testing/tenant-simulator/`: cliente Go que simula 1000 tenants con perfiles distintos (small/medium/enterprise), cada uno con su patrón de tráfico (steady, bursty, scheduled).
+- `load-testing/tenant-simulator/`: cliente **Python (asyncio + httpx)** o TypeScript (undici) que simula 1000 tenants con perfiles distintos (small/medium/enterprise), cada uno con su patrón de tráfico (steady, bursty, scheduled).
 - Escenarios k6: steady state, spike test (10x en 30s), soak test (24h sostenido), stress test (encontrar el knee).
 - Capacity planning doc en `docs/`: cuánto cuesta servir 1M de notificaciones/día, dónde está el bottleneck.
 - Chaos Mesh con experimentos: pod-kill aleatorio, network partition, latency injection, fill-disk, kafka-broker-down.
@@ -512,7 +517,7 @@ Cada fase tiene:
 
 **Deliverables:**
 - Backstage instalado con software catalog que lista tus servicios.
-- Software Templates en Backstage: "New Go Microservice", "New Frontend", "New Worker".
+- Software Templates en Backstage: "New TypeScript Service", "New Python Worker", "New Frontend".
 - Crossplane Compositions: una sola CRD `AcmeService` que crea Deployment + Service + DB en Postgres operator + Grafana dashboard + Slack alert.
 - Golden paths documentados: "Cómo agregar un nuevo servicio en 10 minutos".
 - TechDocs (Backstage feature) sirviendo tus markdowns de runbooks.
@@ -579,7 +584,7 @@ Asumiendo **10 horas/semana** sostenidas. Ajusta proporcionalmente.
 
 | Mes | Semanas | Foco                                | Hito principal                           |
 |-----|---------|-------------------------------------|------------------------------------------|
-| 1   | 1–4     | Foundations + monolito + CI         | Servicio Go corriendo con compose + CI   |
+| 1   | 1–4     | Foundations + monolito + CI         | Servicio TS corriendo con compose + CI   |
 | 2   | 5–8     | Kubernetes básico                   | Servicios migrados a kind                |
 | 3   | 9–12    | Kubernetes avanzado + Terraform     | `tofu apply` recrea todo                 |
 | 4   | 13–16   | GitOps + ArgoCD                     | Deploy = git push                        |
@@ -674,6 +679,14 @@ Estos libros aparecen una y otra vez en recomendaciones de SREs y platform engin
 21. **Istio in Action** — *Christian Posta*.
 22. **Chaos Engineering** — *Rosenthal & Jones*.
 23. **Programming Kubernetes** — *Hausenblas & Schimanski* (si quieres escribir operators).
+
+### 🦀 Tier opcional — Track Rust
+
+Solo si decides incorporar Rust al lab (ver [LANGUAGE_STRATEGY.md](./LANGUAGE_STRATEGY.md)):
+
+24. **Zero To Production In Rust** — *Luca Palmieri*. **El libro más relevante para este lab.** Construye un servicio web Rust en producción con Postgres, observabilidad y CI. Es prácticamente una guía para reescribir un servicio del lab.
+25. **Programming Rust (2nd ed.)** — *Blandy, Orendorff, Tindall*. El libro denso del lenguaje. Léelo si vas en serio.
+26. **Rust for Rustaceans** — *Jon Gjengset*. Intermedio/avanzado, cuando ya tienes los básicos.
 
 ---
 

@@ -26,6 +26,7 @@ API SaaS multi-tenant de notificaciones (email/SMS/push/webhooks) con clientes d
 | 10   | Internal Developer Platform       | 44–52   |
 
 📖 **[Lee el MASTER_PLAN.md completo](./MASTER_PLAN.md)** para el detalle por fase, deliverables, "definition of done", reading list curada y referencias de industria.
+☁️ **[LOCAL_VS_CLOUD.md](./LOCAL_VS_CLOUD.md)** — por qué corre 100% local sin cloud requerido.
 
 ## Quickstart (Fase 4 en adelante)
 
